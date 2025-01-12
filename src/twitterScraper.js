@@ -1,5 +1,4 @@
 const { By, until } = require('selenium-webdriver');
-const axios = require('axios');
 require('dotenv').config();
 
 class TwitterScraper {
@@ -12,97 +11,18 @@ class TwitterScraper {
         this.username = process.env.TWITTER_USERNAME;
         this.password = process.env.TWITTER_PASSWORD;
         
-        // Proxy configuration
-        this.proxyUsername = 'HarshadKarale45';
-        this.proxyPassword = 'HarshadKarale@45';
-        this.maxAuthAttempts = 3;
-        this.ipCheckServices = [
-            'http://checkip.amazonaws.com',
-            'https://api64.ipify.org?format=json',
-            'http://whatismyip.akamai.com'
-        ];
-    }
-
-    async validateProxy() {
-        console.log("Validating proxy connection...");
-        
-        // Create axios instance with proxy config
-        const axiosInstance = axios.create({
-            timeout: 5000,
-            proxy: {
-                host: 'us.proxymesh.com',
-                port: 31280,
-                auth: {
-                    username: this.proxyUsername,
-                    password: this.proxyPassword
-                }
-            }
-        });
-
-        // Try each IP checking service
-        for (const service of this.ipCheckServices) {
-            try {
-                const response = await axiosInstance.get(service);
-                if (response.status === 200) {
-                    console.log(`Proxy validation successful using ${service}`);
-                    return true;
-                }
-            } catch (error) {
-                console.log(`Service ${service} check failed, trying next service...`);
-            }
-        }
-
-        console.log("All IP checking services failed, but continuing process...");
-        return true; // Continue anyway since we don't want to block the process
-    }
-
-    async setupProxyAuth() {
-        console.log("Setting up proxy authentication...");
-        
-        try {
-            // First validate proxy connection
-            await this.validateProxy();
-
-            // Navigate to a test page to trigger proxy auth
-            await this.driver.get('http://example.com');
-            
-            // Handle proxy authentication alert
-            let authAttempts = 0;
-            while (authAttempts < this.maxAuthAttempts) {
-                try {
-                    const alert = await this.driver.switchTo().alert();
-                    await alert.sendKeys(`${this.proxyUsername}\t${this.proxyPassword}`);
-                    await alert.accept();
-                    console.log("Proxy authentication successful");
-                    await this.driver.sleep(2000); // Wait for auth to complete
-                    return true;
-                } catch (error) {
-                    authAttempts++;
-                    if (authAttempts === this.maxAuthAttempts) {
-                        console.log("No proxy authentication prompt found, continuing anyway...");
-                        return true;
-                    }
-                    await this.driver.sleep(1000);
-                }
-            }
-        } catch (error) {
-            console.log("Proxy setup encountered an error, but continuing:", error.message);
-            return true; // Continue anyway to not block the process
+        if (!this.username || !this.password) {
+            throw new Error('Twitter credentials not found in environment variables');
         }
     }
 
     async login() {
-        console.log("Starting login process...");
-        
-        try {
-            // Setup proxy authentication first
-            await this.setupProxyAuth();
-            
-            console.log("Navigating to login page...");
-            await this.driver.get('https://x.com/login');
-            await this.driver.sleep(3000);
+        console.log("Performing login...");
+        await this.driver.get('https://x.com/login');
+        await this.driver.sleep(3000);
 
-            // Rest of the login code remains the same
+        try {
+            // Enter username
             const usernameField = await this.driver.wait(
                 until.elementLocated(By.css('input[autocomplete="username"]')),
                 10000

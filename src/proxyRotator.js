@@ -1,4 +1,3 @@
-// proxyRotator.js
 const axios = require('axios');
 const https = require('https');
 
@@ -6,132 +5,85 @@ class ProxyRotator {
     constructor() {
         this.proxyMeshUsername = "HarshadKarale45";
         this.proxyMeshPassword = "HarshadKarale@45";
-        this.proxyServers = [
-            'us-ca.proxymesh.com',
-            'us-ny.proxymesh.com',
-            'us-fl.proxymesh.com',
-            'us-il.proxymesh.com',
-            'us.proxymesh.com'
-        ];
-        this.currentServerIndex = -1;
+        this.proxyServer = 'us-ca.proxymesh.com';
+        this.port = 31280;
         this.currentIp = null;
-    }
-
-    async validateIpChange(proxyConfig) {
-        if (!this.currentIp) {
-            this.currentIp = await this.getCurrentIp();
-            console.log('Initial IP:', this.currentIp);
-        }
-
-        if (!proxyConfig) {
-            throw new Error('No proxy configuration available');
-        }
-
-        const newIp = await this.getCurrentIp(proxyConfig);
-        console.log('New Proxy IP:', newIp);
-
-        if (this.currentIp === newIp) {
-            throw new Error('IP address did not change with proxy');
-        }
-
-        return newIp;
+        this.rotationDelay = 5000; // 5 seconds between rotation attempts
+        this.maxRotationAttempts = 5;
     }
 
     async getCurrentIp(proxyConfig = null) {
-        try {
-            const config = {
-                timeout: 30000,
-                httpsAgent: new https.Agent({
-                    rejectUnauthorized: false,
-                    secureOptions: require('constants').SSL_OP_NO_TLSv1_2,
-                    ciphers: 'ALL'
-                }),
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
-            };
+        const ipServices = [
+            'http://httpbin.org/ip',  // Returns {"origin": "XXX.XXX.XXX.XXX"}
+            'https://api.ipify.org?format=json',  // Returns {"ip": "XXX.XXX.XXX.XXX"}
+            'http://ip-api.com/json'  // Returns {"query": "XXX.XXX.XXX.XXX", ...}
+        ];
 
-            if (proxyConfig) {
-                const proxyAuth = `${this.proxyMeshUsername}:${this.proxyMeshPassword}`;
-                config.proxy = {
-                    host: proxyConfig.host,
-                    port: proxyConfig.port,
-                    auth: {
-                        username: this.proxyMeshUsername,
-                        password: this.proxyMeshPassword
-                    },
-                    protocol: 'http'
-                };
-                config.headers['Proxy-Authorization'] = `Basic ${Buffer.from(proxyAuth).toString('base64')}`;
-            }
-
-            // Updated IP checking services
-            const ipServices = [
-                { url: 'http://checkip.amazonaws.com', parser: (data) => data.trim() },
-                { url: 'https://api64.ipify.org?format=json', parser: (data) => data.ip },
-                { url: 'http://whatismyip.akamai.com', parser: (data) => data.trim() }
-            ];
-
-            for (const service of ipServices) {
-                try {
-                    const response = await axios.get(service.url, config);
-                    const ip = service.parser(response.data);
-                    if (ip) return ip;
-                } catch (error) {
-                    console.log(`Failed to get IP from ${service.url}:`, error.message);
-                    continue;
-                }
-            }
-            
-            throw new Error('All IP checking services failed');
-        } catch (error) {
-            throw new Error(`Failed to get current IP: ${error.message}`);
-        }
-    }
-
-    async testProxyConnection(proxyConfig) {
         const config = {
             timeout: 10000,
-            proxy: {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        };
+
+        if (proxyConfig) {
+            config.proxy = {
                 host: proxyConfig.host,
                 port: proxyConfig.port,
                 auth: {
                     username: this.proxyMeshUsername,
                     password: this.proxyMeshPassword
-                },
-                protocol: 'http'
-            },
-            httpsAgent: new https.Agent({
-                rejectUnauthorized: false,
-                secureOptions: require('constants').SSL_OP_NO_TLSv1_2,
-                ciphers: 'ALL'
-            }),
-            validateStatus: function (status) {
-                return status >= 200 && status < 600; // Accept all status codes
+                }
+            };
+        }
+
+        for (const service of ipServices) {
+            try {
+                const response = await axios.get(service, config);
+                if (response.data) {
+                    // Extract IP based on the service response format
+                    const ip = response.data.origin || response.data.ip || response.data.query;
+                    if (ip) return ip;
+                }
+            } catch (error) {
+                console.log(`Failed to get IP from ${service}:`, error.message);
+                continue;
             }
+        }
+        throw new Error('Failed to get IP from any service');
+    }
+
+    async rotateIp() {
+        // ProxyMesh requires a specific request to rotate IP
+        const rotateConfig = {
+            method: 'delete',
+            url: 'http://us-ca.proxymesh.com/rotate_ip',
+            auth: {
+                username: this.proxyMeshUsername,
+                password: this.proxyMeshPassword
+            },
+            timeout: 10000
         };
 
         try {
-            await axios.get('http://example.com', config);
+            await axios(rotateConfig);
+            // Wait for the rotation to take effect
+            await new Promise(resolve => setTimeout(resolve, 2000));
             return true;
         } catch (error) {
-            throw new Error(`Proxy connection test failed: ${error.message}`);
+            console.error('IP rotation request failed:', error.message);
+            return false;
         }
     }
 
     async getNextProxy(retryCount = 0) {
-        const maxRetries = this.proxyServers.length * 2;
-        
-        if (retryCount >= maxRetries) {
-            throw new Error('All proxy servers failed validation after maximum retries');
+        if (retryCount >= this.maxRotationAttempts) {
+            throw new Error('Failed to obtain a new IP after maximum attempts');
         }
 
-        this.currentServerIndex = (this.currentServerIndex + 1) % this.proxyServers.length;
-        const proxyHost = this.proxyServers[this.currentServerIndex];
-        
         const proxyConfig = {
-            host: proxyHost,
-            port: 31280,
+            host: this.proxyServer,
+            port: this.port,
             auth: {
                 username: this.proxyMeshUsername,
                 password: this.proxyMeshPassword
@@ -139,16 +91,58 @@ class ProxyRotator {
         };
 
         try {
-            await this.testProxyConnection(proxyConfig);
-            const newIp = await this.validateIpChange(proxyConfig);
+            // Get current IP before rotation
+            const oldIp = this.currentIp || await this.getCurrentIp(proxyConfig);
+            console.log('Current IP:', oldIp);
+
+            // Request IP rotation
+            console.log('Requesting IP rotation...');
+            const rotated = await this.rotateIp();
+            if (!rotated) {
+                throw new Error('IP rotation request failed');
+            }
+
+            // Get new IP after rotation
+            const newIp = await this.getCurrentIp(proxyConfig);
+            console.log('New IP:', newIp);
+
+            // Verify IP has changed
+            if (oldIp === newIp) {
+                console.log('IP did not change, retrying...');
+                await new Promise(resolve => setTimeout(resolve, this.rotationDelay));
+                return this.getNextProxy(retryCount + 1);
+            }
+
+            this.currentIp = newIp;
             return {
                 ...proxyConfig,
                 ip: newIp
             };
+
         } catch (error) {
-            console.error(`Proxy validation failed for ${proxyHost}:`, error.message);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            console.error('Error during IP rotation:', error.message);
+            await new Promise(resolve => setTimeout(resolve, this.rotationDelay));
             return this.getNextProxy(retryCount + 1);
+        }
+    }
+
+    async testConnection() {
+        const proxyConfig = {
+            host: this.proxyServer,
+            port: this.port,
+            auth: {
+                username: this.proxyMeshUsername,
+                password: this.proxyMeshPassword
+            }
+        };
+
+        try {
+            const ip = await this.getCurrentIp(proxyConfig);
+            console.log('Proxy connection successful. Current IP:', ip);
+            return true;
+        } catch (error) {
+            console.error('Proxy connection test failed:', error.message);
+            return false;
         }
     }
 }
