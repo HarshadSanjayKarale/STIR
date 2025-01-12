@@ -1,11 +1,27 @@
-[project]
-name = "stir"
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install"
 
-[service]
-name = "backend-service"
-start = "node server.js"
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
 
 [env]
 PORT = "3000"
-NODE_ENV = "development"
-MONGO_URI = "mongodb+srv://HarshadKarale45:HarshadKarale@45@stir.fopcw.mongodb.net/?retryWrites=true&w=majority&appName=STIR"
+NODE_ENV = "[build]
+builder = "NIXPACKS"
+buildCommand = "npm install"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[env]
+PORT = "3000"
+NODE_ENV = "production""
