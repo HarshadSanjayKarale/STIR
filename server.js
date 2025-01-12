@@ -7,13 +7,22 @@ const { connectToDatabase, saveTrendingTopics, getLatestTrends } = require('./se
 const app = express();
 const port = process.env.PORT || 3000;
 
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${port}`);
+});
+
+
+const cors = require('cors');
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
+    origin: '*',
     methods: ['GET', 'POST'],
-    credentials: true
 }));
+
 app.use(express.json());
-app.use(express.static('public'));
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${port}`);
+});
+
 
 app.get('/api/trends', async (req, res) => {
     try {
