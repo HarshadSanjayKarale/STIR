@@ -2,8 +2,9 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-const uri = "mongodb+srv://Harshad:Harshad@stir.fopcw.mongodb.net/?retryWrites=true&w=majority&appName=STIR" || 'mongodb://localhost:27017/twitter_trends';
-let client = null;
+const uri = "mongodb+srv://Harshad:Harshad@stir.fopcw.mongodb.net/?retryWrites=true&w=majority&appName=STIR";
+const dbName = 'twitter_trends';
+let client;
 
 async function connectToDatabase() {
     try {
@@ -16,42 +17,34 @@ async function connectToDatabase() {
     }
 }
 
-async function saveTrendingTopics(topics, timestamp, proxyInfo) {
-    try {
-        const database = client.db('twitter_trends');
-        const collection = database.collection('trends');
-        
-        const result = await collection.insertOne({
-            topics,
-            timestamp,
-            ip: proxyInfo.ip,
-            proxyHost: proxyInfo.host,
-            usedProxy: proxyInfo.usedProxy,
-            createdAt: new Date()
-        });
-
-        return result;
-    } catch (error) {
-        console.error('Error saving to MongoDB:', error);
-        throw error;
+async function saveTrendingTopics(topics, timestamp, ipAddress) {
+    if (!client?.topology?.isConnected()) {
+        await connectToDatabase();
     }
+
+    const collection = client.db(dbName).collection('trends');
+    
+    const document = {
+        nameoftrend1: topics[0] || null,
+        nameoftrend2: topics[1] || null,
+        nameoftrend3: topics[2] || null,
+        nameoftrend4: topics[3] || null,
+        nameoftrend5: topics[4] || null,
+        timestamp: timestamp,
+        ipAddress: ipAddress,
+        createdAt: new Date()
+    };
+
+    return await collection.insertOne(document);
 }
 
 async function getLatestTrends() {
-    try {
-        const database = client.db('twitter_trends');
-        const collection = database.collection('trends');
-        
-        const trends = await collection.find()
-            .sort({ timestamp: -1 })
-            .limit(10)
-            .toArray();
-            
-        return trends;
-    } catch (error) {
-        console.error('Error fetching from MongoDB:', error);
-        throw error;
+    if (!client?.topology?.isConnected()) {
+        await connectToDatabase();
     }
+
+    const collection = client.db(dbName).collection('trends');
+    return await collection.find().sort({ timestamp: -1 }).limit(10).toArray();
 }
 
 module.exports = {
