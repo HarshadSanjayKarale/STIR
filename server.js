@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors({
-    origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
+    origin: '*', // Update this to your frontend domain in production
     methods: ['GET', 'POST'],
     credentials: true
 }));
