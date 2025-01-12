@@ -4,8 +4,8 @@ require('dotenv').config();
 
 class ProxyService {
     constructor() {
-        this.proxyMeshUsername = process.env.PROXYMESH_USERNAME;
-        this.proxyMeshPassword = process.env.PROXYMESH_PASSWORD;
+        this.proxyMeshUsername = "HarshadKarale45";
+        this.proxyMeshPassword = "HarshadKarale@45";
         
         this.proxyServers = [
             'us-ca.proxymesh.com',
@@ -16,16 +16,31 @@ class ProxyService {
         ];
         
         this.currentServerIndex = 0;
+        this.retryCount = 0;
+        this.maxRetries = 3;
     }
 
-    async refreshIp() {
-        const proxyHost = this.proxyServers[this.currentServerIndex];
+    getNextServer() {
+        this.currentServerIndex = (this.currentServerIndex + 1) % this.proxyServers.length;
+        return this.proxyServers[this.currentServerIndex];
+    }
+
+    async getProxyIp(useProxy = true) {
+        if (!useProxy) {
+            // Return local configuration if proxy fails
+            return {
+                ip: 'localhost',
+                host: 'localhost',
+                port: null,
+                auth: null
+            };
+        }
+
+        const proxyHost = this.getNextServer();
         const proxyPort = 31280;
         const authHeader = `Basic ${Buffer.from(`${this.proxyMeshUsername}:${this.proxyMeshPassword}`).toString('base64')}`;
 
         try {
-            console.log(`Attempting to get new IP from ${proxyHost}...`);
-            
             const response = await axios.get('http://api.ipify.org?format=json', {
                 headers: {
                     'Proxy-Authorization': authHeader,
@@ -35,27 +50,27 @@ class ProxyService {
                     port: proxyPort,
                     protocol: 'http',
                 },
-                timeout: 10000
+                timeout: 5000 // 5 second timeout
             });
 
-            const newIp = response.data.ip;
-            console.log(`Successfully obtained new IP: ${newIp}`);
-
-            // Rotate to next server for next request
-            this.currentServerIndex = (this.currentServerIndex + 1) % this.proxyServers.length;
-
+            this.retryCount = 0; // Reset retry count on success
             return {
-                ip: newIp,
+                ip: response.data.ip,
                 host: proxyHost,
                 port: proxyPort,
                 auth: authHeader
             };
-
         } catch (error) {
-            console.error(`Failed to get IP from ${proxyHost}:`, error.message);
-            // Try next server on failure
-            this.currentServerIndex = (this.currentServerIndex + 1) % this.proxyServers.length;
-            throw error;
+            console.error('Proxy error:', error.message);
+            
+            if (this.retryCount < this.maxRetries) {
+                this.retryCount++;
+                console.log(`Retrying with different proxy server (Attempt ${this.retryCount}/${this.maxRetries})`);
+                return this.getProxyIp(true);
+            }
+            
+            console.log('Falling back to local connection');
+            return this.getProxyIp(false);
         }
     }
 }

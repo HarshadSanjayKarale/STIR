@@ -1,14 +1,12 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const { fetchTrendingTopics } = require('./selenium/seleniumScript');
+const { fetchTrendingTopics } = require('./src/main');
 const { connectToDatabase, saveTrendingTopics, getLatestTrends } = require('./services/mongoService');
-const proxyService = require('./services/proxyService');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors({
     origin: ['http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:3000'],
     methods: ['GET', 'POST'],
@@ -17,12 +15,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
-});
-
-// Endpoint to fetch stored trends
 app.get('/api/trends', async (req, res) => {
     try {
         const trends = await getLatestTrends();
@@ -40,35 +32,24 @@ app.get('/api/trends', async (req, res) => {
     }
 });
 
-// Main endpoint to trigger scraping
 app.post('/api/scrape-trends', async (req, res) => {
     try {
-        let proxyConfig = null;
-        
-        try {
-            proxyConfig = await proxyService.getProxyIp();
-        } catch (proxyError) {
-            console.warn('Failed to get proxy, continuing without proxy:', proxyError.message);
-            // Continue without proxy
-        }
-        
-        const trendingTopics = await fetchTrendingTopics(proxyConfig);
+        const result = await fetchTrendingTopics();
         
         const timestamp = new Date();
-        const result = await saveTrendingTopics(
-            trendingTopics, 
+        const dbResult = await saveTrendingTopics(
+            result.topics, 
             timestamp, 
-            proxyConfig?.ip || 'local'
+            result.proxyInfo
         );
         
         res.json({
             success: true,
             data: {
-                id: result.insertedId,
-                topics: trendingTopics,
+                id: dbResult.insertedId,
+                topics: result.topics,
                 timestamp,
-                ip: proxyConfig?.ip || 'local',
-                proxyUsed: !!proxyConfig
+                proxyInfo: result.proxyInfo
             }
         });
     } catch (error) {
@@ -81,7 +62,6 @@ app.post('/api/scrape-trends', async (req, res) => {
     }
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
@@ -91,20 +71,6 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Handle unhandled rejections and exceptions
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
-    // Give the server a chance to finish handling ongoing requests
-    setTimeout(() => {
-        process.exit(1);
-    }, 1000);
-});
-
-// Start the server
 async function startServer() {
     try {
         await connectToDatabase();
