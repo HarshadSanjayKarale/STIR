@@ -1,0 +1,11 @@
+[project]
+name = "stir"
+
+[service]
+name = "backend-service"
+start = "node server.js"
+
+[env]
+PORT = "3000"
+NODE_ENV = "development"
+MONGO_URI = "mongodb+srv://HarshadKarale45:HarshadKarale@45@stir.fopcw.mongodb.net/?retryWrites=true&w=majority&appName=STIR"
