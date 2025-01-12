@@ -1,0 +1,116 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f2f5;
+    color: #1a1a1a;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: #1da1f2;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.button-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #1da1f2;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #0c85d0;
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+#status {
+    text-align: center;
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.error { 
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.success { 
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.trends-container {
+    display: grid;
+    gap: 20px;
+}
+
+.trend-item {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.trend-header {
+    background-color: #1da1f2;
+    color: white;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.trend-content {
+    padding: 20px;
+}
+
+.trend-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.trend-list li {
+    margin-bottom: 10px;
+    padding: 5px 10px;
+    background-color: #e8f5fd;
+    border-radius: 5px;
+}
+
+.trend-info {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+}
+
+pre {
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+    font-size: 14px;
+    margin-top: 20px;
+}
+
