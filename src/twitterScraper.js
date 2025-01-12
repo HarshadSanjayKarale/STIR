@@ -10,6 +10,7 @@ class TwitterScraper {
         this.driver = seleniumHelper.driver;
         this.username = process.env.TWITTER_USERNAME;
         this.password = process.env.TWITTER_PASSWORD;
+        this.email = process.env.TWITTER_EMAIL || this.username;
         
         if (!this.username || !this.password) {
             throw new Error('Twitter credentials not found in environment variables');
@@ -18,10 +19,15 @@ class TwitterScraper {
 
     async login() {
         console.log("Performing login...");
-        await this.driver.get('https://x.com/login');
-        await this.driver.sleep(3000);
-
+        
         try {
+            // Handle proxy authentication by including credentials in the URL
+            const baseUrl = 'https://x.com/login';
+            const urlWithAuth = baseUrl.replace('https://', `https://Harshad45:Harshad45@`);
+            
+            await this.driver.get(urlWithAuth);
+            await this.driver.sleep(3000);
+
             // Enter username
             const usernameField = await this.driver.wait(
                 until.elementLocated(By.css('input[autocomplete="username"]')),
@@ -36,18 +42,23 @@ class TwitterScraper {
             await nextButton.click();
             await this.driver.sleep(2000);
 
-            // Handle email verification if needed
+            // Handle additional verification steps
+            let isEmailRequired = false;
             try {
+                // Check if email verification is required
                 const emailField = await this.driver.wait(
                     until.elementLocated(By.css('input[autocomplete="email"]')),
                     5000
                 );
-                await emailField.sendKeys(this.username);
-                const submitButton = await this.driver.wait(
+                isEmailRequired = true;
+                console.log("Email verification required");
+                await emailField.sendKeys(this.email);
+                
+                const emailNextButton = await this.driver.wait(
                     until.elementLocated(By.xpath('//span[text()="Next"]')),
                     5000
                 );
-                await submitButton.click();
+                await emailNextButton.click();
                 await this.driver.sleep(2000);
             } catch (error) {
                 console.log("No email verification required");
@@ -86,8 +97,10 @@ class TwitterScraper {
         const trendingTopics = [];
 
         try {
-            // Navigate to explore page
-            await this.driver.get('https://x.com/explore');
+            // Include proxy authentication in explore URL as well
+            const exploreUrl = 'https://x.com/explore';
+            const exploreWithAuth = exploreUrl.replace('https://', `https://Harshad45:Harshad45@`);
+            await this.driver.get(exploreWithAuth);
             await this.driver.sleep(5000);
 
             try {
